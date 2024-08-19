@@ -2,6 +2,11 @@ from ..utils import common_annotator_call, create_node_input_types
 import comfy.model_management as model_management
 
 class Depth_Anything_V2_Preprocessor:
+
+    def __init__(self) -> None:
+        self.model = None
+        self.ckpt_name = None
+
     @classmethod
     def INPUT_TYPES(s):
         return create_node_input_types(
@@ -15,10 +20,14 @@ class Depth_Anything_V2_Preprocessor:
 
     def execute(self, image, ckpt_name, resolution=512, **kwargs):
         from controlnet_aux.depth_anything_v2 import DepthAnythingV2Detector
+        if self.model is None or ckpt_name != self.ckpt_name:
+            if self.model is not None:
+                del self.model
+            self.model = DepthAnythingV2Detector.from_pretrained(filename=ckpt_name).to(model_management.get_torch_device())
+            self.ckpt_name = ckpt_name
+            
+        out = common_annotator_call(self.model, image, resolution=resolution, max_depth=1)
 
-        model = DepthAnythingV2Detector.from_pretrained(filename=ckpt_name).to(model_management.get_torch_device())
-        out = common_annotator_call(model, image, resolution=resolution, max_depth=1)
-        del model
         return (out, )
 
 """ class Depth_Anything_Metric_V2_Preprocessor:
