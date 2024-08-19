@@ -1,4 +1,4 @@
-from ..utils import common_annotator_call, create_node_input_types
+from ..utils import common_annotator_call, INPUT, define_preprocessor_inputs
 import comfy.model_management as model_management
 
 class Depth_Anything_V2_Preprocessor:
@@ -9,8 +9,12 @@ class Depth_Anything_V2_Preprocessor:
 
     @classmethod
     def INPUT_TYPES(s):
-        return create_node_input_types(
-            ckpt_name=(["depth_anything_v2_vitg.pth", "depth_anything_v2_vitl.pth", "depth_anything_v2_vitb.pth", "depth_anything_v2_vits.pth"], {"default": "depth_anything_v2_vitl.pth"})
+        return define_preprocessor_inputs(
+            ckpt_name=INPUT.COMBO(
+                ["depth_anything_v2_vitg.pth", "depth_anything_v2_vitl.pth", "depth_anything_v2_vitb.pth", "depth_anything_v2_vits.pth"],
+                default="depth_anything_v2_vitl.pth"
+            ),
+            resolution=INPUT.RESOLUTION()
         )
 
     RETURN_TYPES = ("IMAGE",)
@@ -44,7 +48,7 @@ class Depth_Anything_V2_Preprocessor:
     CATEGORY = "ControlNet Preprocessors/Normal and Depth Estimators"
 
     def execute(self, image, environment, resolution=512, max_depth=20.0, **kwargs):
-        from controlnet_aux.depth_anything_v2 import DepthAnythingV2Detector
+        from custom_controlnet_aux.depth_anything_v2 import DepthAnythingV2Detector
         filename = dict(indoor="depth_anything_v2_metric_hypersim_vitl.pth", outdoor="depth_anything_v2_metric_vkitti_vitl.pth")[environment]
         model = DepthAnythingV2Detector.from_pretrained(filename=filename).to(model_management.get_torch_device())
         out = common_annotator_call(model, image, resolution=resolution, max_depth=max_depth)

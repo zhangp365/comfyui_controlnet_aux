@@ -1,13 +1,14 @@
-from ..utils import common_annotator_call, create_node_input_types
+from ..utils import common_annotator_call, define_preprocessor_inputs, INPUT
 import comfy.model_management as model_management
 import numpy as np
 
 class MIDAS_Normal_Map_Preprocessor:
     @classmethod
     def INPUT_TYPES(s):
-        return create_node_input_types(
-            a =  ("FLOAT", {"default": np.pi * 2.0, "min": 0.0, "max": np.pi * 5.0, "step": 0.05}),
-            bg_threshold = ("FLOAT", {"default": 0.1, "min": 0, "max": 1, "step": 0.05})
+        return define_preprocessor_inputs(
+            a=INPUT.FLOAT(default=np.pi * 2.0, min=0.0, max=np.pi * 5.0),
+            bg_threshold=INPUT.FLOAT(default=0.1),
+            resolution=INPUT.RESOLUTION()
         )
 
     RETURN_TYPES = ("IMAGE",)
@@ -15,8 +16,8 @@ class MIDAS_Normal_Map_Preprocessor:
 
     CATEGORY = "ControlNet Preprocessors/Normal and Depth Estimators"
 
-    def execute(self, image, a, bg_threshold, resolution=512, **kwargs):
-        from controlnet_aux.midas import MidasDetector
+    def execute(self, image, a=np.pi * 2.0, bg_threshold=0.1, resolution=512, **kwargs):
+        from custom_controlnet_aux.midas import MidasDetector
 
         model = MidasDetector.from_pretrained().to(model_management.get_torch_device())
         #Dirty hack :))
@@ -35,9 +36,10 @@ class MIDAS_Depth_Map_Preprocessor:
 
     @classmethod
     def INPUT_TYPES(s):
-        return create_node_input_types(
-            a =  ("FLOAT", {"default": np.pi * 2.0, "min": 0.0, "max": np.pi * 5.0, "step": 0.05}),
-            bg_threshold = ("FLOAT", {"default": 0.1, "min": 0, "max": 1, "step": 0.05})
+        return define_preprocessor_inputs(
+            a=INPUT.FLOAT(default=np.pi * 2.0, min=0.0, max=np.pi * 5.0),
+            bg_threshold=INPUT.FLOAT(default=0.1),
+            resolution=INPUT.RESOLUTION()
         )
 
     RETURN_TYPES = ("IMAGE",)
@@ -45,6 +47,13 @@ class MIDAS_Depth_Map_Preprocessor:
 
     CATEGORY = "ControlNet Preprocessors/Normal and Depth Estimators"
 
+    def execute(self, image, a=np.pi * 2.0, bg_threshold=0.1, resolution=512, **kwargs):
+        from custom_controlnet_aux.midas import MidasDetector
+
+        # Ref: https://github.com/lllyasviel/ControlNet/blob/main/gradio_depth2image.py
+        model = MidasDetector.from_pretrained().to(model_management.get_torch_device())
+        out = common_annotator_call(model, image, resolution=resolution, a=a, bg_th=bg_threshold)
+        del model
     def execute(self, image, a, bg_threshold, resolution=512, **kwargs):
         out = common_annotator_call(self.model, image, resolution=resolution, a=a, bg_th=bg_threshold)
         return (out, )
