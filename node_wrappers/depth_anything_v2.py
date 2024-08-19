@@ -23,7 +23,7 @@ class Depth_Anything_V2_Preprocessor:
     CATEGORY = "ControlNet Preprocessors/Normal and Depth Estimators"
 
     def execute(self, image, ckpt_name, resolution=512, **kwargs):
-        from controlnet_aux.depth_anything_v2 import DepthAnythingV2Detector
+        from custom_controlnet_aux.depth_anything_v2 import DepthAnythingV2Detector
         if self.model is None or ckpt_name != self.ckpt_name:
             if self.model is not None:
                 del self.model
