@@ -57,6 +57,7 @@ class DWPose_Preprocessor:
                 ["dw-ll_ucoco_384_bs5.torchscript.pt", "dw-ll_ucoco_384.onnx", "dw-ll_ucoco.onnx"],
                 default="dw-ll_ucoco_384_bs5.torchscript.pt"
             ),
+            scale_stick_for_xinsr_cn=INPUT.COMBO(["disable", "enable"]),
             max_people_number=INPUT.INT()
         )
 
@@ -66,7 +67,7 @@ class DWPose_Preprocessor:
 
     CATEGORY = "ControlNet Preprocessors/Faces and Poses Estimators"
 
-    def estimate_pose(self, image, detect_hand="enable", detect_body="enable", detect_face="enable", resolution=512, bbox_detector="yolox_l.onnx", pose_estimator="dw-ll_ucoco_384.onnx", max_people_number=0, **kwargs):
+    def estimate_pose(self, image, detect_hand="enable", detect_body="enable", detect_face="enable", resolution=512, bbox_detector="yolox_l.onnx", pose_estimator="dw-ll_ucoco_384.onnx", scale_stick_for_xinsr_cn="disable", max_people_number=0, **kwargs):
         if bbox_detector == "yolox_l.onnx":
             yolo_repo = DWPOSE_MODEL_NAME
         elif "yolox" in bbox_detector:
@@ -95,13 +96,14 @@ class DWPose_Preprocessor:
         detect_hand = detect_hand == "enable"
         detect_body = detect_body == "enable"
         detect_face = detect_face == "enable"
+        scale_stick_for_xinsr_cn = scale_stick_for_xinsr_cn == "enable"
         self.openpose_dicts = []
         def func(image, **kwargs):
             pose_img, openpose_dict = self.model(image, **kwargs)
             self.openpose_dicts.append(openpose_dict)
             return pose_img
 
-        out = common_annotator_call(func, image, include_hand=detect_hand, include_face=detect_face, include_body=detect_body, image_and_json=True, resolution=resolution)
+        out = common_annotator_call(func, image, include_hand=detect_hand, include_face=detect_face, include_body=detect_body, image_and_json=True, resolution=resolution, xinsr_stick_scaling=scale_stick_for_xinsr_cn)
      
         people = self.openpose_dicts[0].get('people', [{}])
 
