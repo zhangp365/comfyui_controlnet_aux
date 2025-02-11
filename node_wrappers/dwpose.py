@@ -109,7 +109,9 @@ class DWPose_Preprocessor:
 
         people_keypoints = [self.convert_keypoints(one) for one in people]
         if len(people_keypoints) > max_people_number and max_people_number > 0:
-            people_keypoints = self.remove_unavaible_keypoints(people_keypoints, max_people_number)
+            people_keypoints, indices = self.remove_unavaible_keypoints(people_keypoints, max_people_number)
+            if len(indices) > 0 and len(indices) < len(people):
+                self.openpose_dicts[0]["people"] = [people[i] for i in indices]
         
         canvas = np.zeros((self.openpose_dicts[0].get("canvas_height"),self.openpose_dicts[0].get("canvas_width"),3))
         for keypoints in people_keypoints:
@@ -123,20 +125,27 @@ class DWPose_Preprocessor:
 
     def remove_unavaible_keypoints(self, people_keypoints, max_people_number):
         max_lengths = []
+        indices = list(range(len(people_keypoints)))  # 添加索引追踪
 
         # Calculate the maximum length for each group of keypoints
         for keypoints in people_keypoints:
             max_length = self.get_max_distance(keypoints)
             max_lengths.append(max_length)
 
-        sorted_touple = sorted(zip(people_keypoints, max_lengths), key=lambda x:x[1], reverse=True)
+        # 将索引也加入排序
+        sorted_tuple = sorted(zip(people_keypoints, max_lengths, indices), 
+                            key=lambda x: x[1], 
+                            reverse=True)
 
-        # Filter out keypoints groups that have a maximum length less than one-fourth of the largest maximum length
-        filtered_keypoints = [
-            keypoints for keypoints, _ in sorted_touple[:max_people_number]
-            ]
+        # 解压缩排序后的元组
+        filtered_keypoints = []
+        kept_indices = []
+        
+        for keypoints, _, idx in sorted_tuple[:max_people_number]:
+            filtered_keypoints.append(keypoints)
+            kept_indices.append(idx)
 
-        return filtered_keypoints
+        return filtered_keypoints, kept_indices
 
     def get_max_distance(self, keypoints):
         keypoints = [p for p in keypoints if p.confidence!=0]
