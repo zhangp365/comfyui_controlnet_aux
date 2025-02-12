@@ -3,6 +3,7 @@ import comfy.model_management as model_management
 import numpy as np
 import warnings
 from custom_controlnet_aux.dwpose import DwposeDetector, AnimalposeDetector
+from custom_controlnet_aux.dwpose.util import draw_facepose
 import os
 import json
 import cv2
@@ -61,8 +62,8 @@ class DWPose_Preprocessor:
             max_people_number=INPUT.INT()
         )
 
-    RETURN_TYPES = ("IMAGE", "POSE_KEYPOINT", "IMAGE")
-    RETURN_NAMES = ("normal", "POSE_KEYPOINT","xl_pose_body_only")
+    RETURN_TYPES = ("IMAGE", "POSE_KEYPOINT", "IMAGE", "IMAGE")
+    RETURN_NAMES = ("normal", "POSE_KEYPOINT","xl_pose_body_only", "b&w_pose")
     FUNCTION = "estimate_pose"
 
     CATEGORY = "ControlNet Preprocessors/Faces and Poses Estimators"
@@ -116,11 +117,21 @@ class DWPose_Preprocessor:
         canvas = np.zeros((self.openpose_dicts[0].get("canvas_height"),self.openpose_dicts[0].get("canvas_width"),3))
         for keypoints in people_keypoints:
             canvas = draw_bodypose(canvas, keypoints)
+        
+        canvas_bw = np.zeros((self.openpose_dicts[0].get("canvas_height"),self.openpose_dicts[0].get("canvas_width"),3))
+        for keypoints in people_keypoints:
+            canvas_bw = draw_bodypose(canvas_bw, keypoints, bw=True)
+        
+        if detect_face:
+            face_keypoints =[self.convert_keypoints(one, key="face_keypoints_2d") for one in self.openpose_dicts[0]["people"]]
+            face_keypoints = [point for ps in face_keypoints for point in ps]
+            canvas_bw = draw_facepose(canvas_bw, face_keypoints)
 
         pose_image_new = torch.from_numpy(canvas.astype(np.float32) / 255.0).unsqueeze(0)
+        pose_image_bw = torch.from_numpy(canvas_bw.astype(np.float32) / 255.0).unsqueeze(0)
         return {
             'ui': { "openpose_json": [json.dumps(self.openpose_dicts, indent=4)] },
-            "result": (out, self.openpose_dicts, pose_image_new)
+            "result": (out, self.openpose_dicts, pose_image_new, pose_image_bw)
         }
 
     def remove_unavaible_keypoints(self, people_keypoints, max_people_number):
@@ -160,8 +171,8 @@ class DWPose_Preprocessor:
 
         return max_distance
     
-    def convert_keypoints(self, one):
-        pose_keypoints_2d = one.get("pose_keypoints_2d",[])
+    def convert_keypoints(self, one, key="pose_keypoints_2d"):
+        pose_keypoints_2d = one.get(key,[])
         keypoints = []
         for i in range(len(pose_keypoints_2d)//3):
             keypoint = Keypoint(*pose_keypoints_2d[3*i:3*(i+1)])
@@ -170,7 +181,7 @@ class DWPose_Preprocessor:
 
 
 
-def draw_bodypose(canvas: np.ndarray, keypoints: list) -> np.ndarray:
+def draw_bodypose(canvas: np.ndarray, keypoints: list, bw=False) -> np.ndarray:
     """
     Draw keypoints and limbs representing body pose on a given canvas.
 
@@ -213,6 +224,8 @@ def draw_bodypose(canvas: np.ndarray, keypoints: list) -> np.ndarray:
     colors = [[255, 0, 0], [255, 85, 0], [255, 170, 0], [255, 255, 0], [170, 255, 0], [85, 255, 0], [0, 255, 0], \
               [0, 255, 85], [0, 255, 170], [0, 255, 255], [0, 170, 255], [0, 85, 255], [0, 0, 255], [85, 0, 255], \
               [170, 0, 255], [255, 0, 255], [255, 0, 170], [255, 0, 85]]
+    if bw:
+        colors = [[255, 255, 255] for _ in colors]
 
     for (k1_index, k2_index), color in zip(limbSeq, colors):
         keypoint1 = keypoints[k1_index - 1]
