@@ -2,9 +2,9 @@ from ..utils import common_annotator_call, INPUT, define_preprocessor_inputs
 import comfy.model_management as model_management
 
 class Depth_Anything_V2_Preprocessor:
+    loaded_models = {}
 
     def __init__(self) -> None:
-        self.model = None
         self.ckpt_name = None
 
     @classmethod
@@ -24,13 +24,14 @@ class Depth_Anything_V2_Preprocessor:
 
     def execute(self, image, ckpt_name, resolution=512, **kwargs):
         from custom_controlnet_aux.depth_anything_v2 import DepthAnythingV2Detector
-        if self.model is None or ckpt_name != self.ckpt_name:
-            if self.model is not None:
-                del self.model
-            self.model = DepthAnythingV2Detector.from_pretrained(filename=ckpt_name).to(model_management.get_torch_device())
+        
+        if ckpt_name != self.ckpt_name:
             self.ckpt_name = ckpt_name
-            
-        out = common_annotator_call(self.model, image, resolution=resolution, max_depth=1)
+            if ckpt_name not in self.loaded_models:
+                self.loaded_models[ckpt_name] = DepthAnythingV2Detector.from_pretrained(filename=ckpt_name).to(model_management.get_torch_device())
+        
+        model = self.loaded_models[ckpt_name]
+        out = common_annotator_call(model, image, resolution=resolution, max_depth=1)
 
         return (out, )
 
