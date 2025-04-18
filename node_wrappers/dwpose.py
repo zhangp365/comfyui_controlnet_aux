@@ -173,6 +173,8 @@ class DWPose_Preprocessor:
     
     def convert_keypoints(self, one, key="pose_keypoints_2d"):
         pose_keypoints_2d = one.get(key,[])
+        if pose_keypoints_2d is None or len(pose_keypoints_2d) == 0:
+            return []
         keypoints = []
         for i in range(len(pose_keypoints_2d)//3):
             keypoint = Keypoint(*pose_keypoints_2d[3*i:3*(i+1)])
