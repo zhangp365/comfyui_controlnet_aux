@@ -5,10 +5,10 @@ import time
 import logging
 logger = logging.getLogger(__file__)
 class Depth_Anything_V2_Preprocessor:
-    loaded_models = {}
 
     def __init__(self) -> None:
         self.ckpt_name = None
+        self.model = None
 
     @classmethod
     def INPUT_TYPES(s):
@@ -30,12 +30,9 @@ class Depth_Anything_V2_Preprocessor:
         start_time = time.time()
         if ckpt_name != self.ckpt_name:
             self.ckpt_name = ckpt_name
-            if ckpt_name not in self.loaded_models:
-                self.loaded_models[ckpt_name] = DepthAnythingV2Detector.from_pretrained(filename=ckpt_name).to(model_management.get_torch_device())
+            self.model = DepthAnythingV2Detector.from_pretrained(filename=ckpt_name).to(model_management.get_torch_device())
         
-        model = self.loaded_models[ckpt_name]
-        logger.info(f"Depth Anything V2 Preprocessor model loaded cost: {time.time() - start_time}")
-        out = common_annotator_call(model, image, resolution=resolution, max_depth=1)
+        out = common_annotator_call(self.model, image, resolution=resolution, max_depth=1)
         logger.info(f"Depth Anything V2 Preprocessor execute, cost: {time.time() - start_time}")
         return (out, )
 
